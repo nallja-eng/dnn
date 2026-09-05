@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 경사하강법 시뮬레이션</title>
-    <!-- Plotly.js 라이브러리 로드 -->
+    <title>2D & 3D 경사하강법 시뮬레이션</title>
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
     <style>
         body {
-            font-family: 'Pretendard', sans-serif;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: #f4f6f9;
             margin: 0; padding: 20px;
             display: flex; flex-direction: column; align-items: center;
@@ -16,23 +15,42 @@
         .container {
             background: white; padding: 20px; border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            width: 100%; max-width: 1000px;
+            width: 100%; max-width: 1200px;
         }
-        #plotDiv { width: 100%; height: 500px; }
+        h2 { text-align: center; margin-top: 0; color: #1a202c; }
+        
+        /* 좌우 분할 레이아웃 */
+        .visualizations {
+            display: flex; gap: 20px; width: 100%; height: 500px; margin-bottom: 20px;
+        }
+        .viz-box {
+            flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; 
+            background: #ffffff; position: relative; overflow: hidden;
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+        #plot3d { width: 100%; height: 100%; }
+        .viz-title {
+            position: absolute; top: 10px; left: 10px; z-index: 10;
+            background: rgba(255,255,255,0.9); padding: 5px 10px; 
+            border-radius: 4px; font-weight: bold; border: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        /* 대시보드 및 컨트롤 */
         .dashboard {
-            display: flex; gap: 15px; margin-top: 20px; justify-content: space-between;
+            display: flex; gap: 15px; justify-content: space-between;
         }
         .card {
             padding: 15px; border-radius: 8px; flex: 1; text-align: center;
             border: 2px solid transparent; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .card h3 { margin: 0 0 10px 0; font-size: 16px; }
-        .data-row { display: flex; justify-content: space-around; margin-top: 10px; font-size: 14px; }
+        .data-row { display: flex; justify-content: space-around; margin-top: 8px; font-size: 14px; }
         .val { font-weight: bold; font-size: 16px; }
         
-        .card.batch { border-color: #4285f4; color: #1a73e8; }
-        .card.mini { border-color: #34a853; color: #188038; }
-        .card.sgd { border-color: #ea4335; color: #c5221f; }
+        .card.batch { border-color: #4285f4; color: #1a73e8; background: #e8f0fe; }
+        .card.mini { border-color: #34a853; color: #188038; background: #e6f4ea; }
+        .card.sgd { border-color: #ea4335; color: #c5221f; background: #fce8e6; }
         
         .controls { margin-top: 20px; text-align: center; }
         button {
@@ -45,8 +63,18 @@
 <body>
 
     <div class="container">
-        <h2 style="text-align: center; margin-top:0;">3D 최적화 궤적 및 파라미터(W, b) 변화</h2>
-        <div id="plotDiv"></div>
+        <h2>2D 등고선과 3D 곡면을 통한 파라미터(W, b) 최적화 시각화</h2>
+        
+        <div class="visualizations">
+            <div class="viz-box">
+                <div class="viz-title">2D 등고선 (Top-down View)</div>
+                <canvas id="canvas2d" width="580" height="500"></canvas>
+            </div>
+            <div class="viz-box">
+                <div class="viz-title">3D 손실 곡면 (Surface View)</div>
+                <div id="plot3d"></div>
+            </div>
+        </div>
         
         <div class="dashboard">
             <div class="card batch">
@@ -61,156 +89,4 @@
             </div>
             <div class="card sgd">
                 <h3>확률적 (SGD)</h3>
-                <div class="data-row"><span>W: <span class="val" id="w-sgd">8.00</span></span><span>b: <span class="val" id="b-sgd">8.00</span></span></div>
-                <div class="data-row"><span>Loss: <span class="val" id="l-sgd">128.0</span></span><span>스텝: <span class="val" id="c-sgd">0</span></span></div>
-            </div>
-        </div>
-
-        <div class="controls">
-            <button id="startBtn">시뮬레이션 시작</button>
-            <button id="resetBtn" style="background-color: #718096; margin-left:10px;">초기화</button>
-        </div>
-    </div>
-
-    <script>
-        // 손실 함수 정의: J(W, b) = W^2 + b^2 (중심이 0,0인 단순한 그릇 형태)
-        function getLoss(w, b) {
-            return (w * w) + (b * b);
-        }
-
-        // 3D 곡면(Surface) 데이터 생성
-        const wGrid = [], bGrid = [], lossGrid = [];
-        for (let w = -10; w <= 10; w += 1) {
-            let bRow = [], lossRow = [];
-            for (let b = -10; b <= 10; b += 1) {
-                bRow.push(b);
-                lossRow.push(getLoss(w, b));
-            }
-            wGrid.push(Array(21).fill(w));
-            bGrid.push(bRow);
-            lossGrid.push(lossRow);
-        }
-
-        const surfaceTrace = {
-            x: wGrid, y: bGrid, z: lossGrid,
-            type: 'surface',
-            colorscale: 'Blues',
-            opacity: 0.7,
-            showscale: false,
-            name: 'Loss Surface'
-        };
-
-        // 에이전트 클래스 (각 알고리즘)
-        class Agent {
-            constructor(id, name, color, lr, noise, intervalMs) {
-                this.id = id; this.name = name; this.color = color;
-                this.lr = lr; this.noise = noise; this.intervalMs = intervalMs;
-                this.reset();
-            }
-            reset() {
-                this.w = 8; this.b = 8; // 시작 위치
-                this.historyW = [this.w]; this.historyB = [this.b]; this.historyLoss = [getLoss(this.w, this.b)];
-                this.steps = 0; this.lastUpdate = Date.now(); this.reached = false;
-            }
-            update() {
-                if (this.reached) return;
-                const now = Date.now();
-                if (now - this.lastUpdate >= this.intervalMs) {
-                    // 편미분 (기울기) + 노이즈 추가
-                    let gradW = 2 * this.w + (Math.random() - 0.5) * this.noise;
-                    let gradB = 2 * this.b + (Math.random() - 0.5) * this.noise;
-                    
-                    this.w -= this.lr * gradW;
-                    this.b -= this.lr * gradB;
-                    
-                    this.historyW.push(this.w);
-                    this.historyB.push(this.b);
-                    this.historyLoss.push(getLoss(this.w, this.b));
-                    
-                    this.steps++;
-                    this.lastUpdate = now;
-                    
-                    if (Math.abs(this.w) < 0.1 && Math.abs(this.b) < 0.1) this.reached = true;
-                }
-            }
-            getTrace() {
-                return {
-                    x: this.historyW, y: this.historyB, z: this.historyLoss,
-                    type: 'scatter3d', mode: 'lines+markers',
-                    marker: { size: 4, color: this.color },
-                    line: { width: 4, color: this.color },
-                    name: this.name
-                };
-            }
-            updateUI() {
-                document.getElementById(`w-${this.id}`).innerText = this.w.toFixed(2);
-                document.getElementById(`b-${this.id}`).innerText = this.b.toFixed(2);
-                document.getElementById(`l-${this.id}`).innerText = getLoss(this.w, this.b).toFixed(1);
-                document.getElementById(`c-${this.id}`).innerText = this.steps;
-            }
-        }
-
-        const agents = [
-            new Agent('batch', 'Batch', '#4285f4', 0.15, 0, 800),     // 노이즈 0, 보폭 큼, 아주 느림
-            new Agent('mini', 'Mini-Batch', '#34a853', 0.08, 4, 150), // 노이즈 약간, 보폭 중간, 중간 속도
-            new Agent('sgd', 'SGD', '#ea4335', 0.03, 15, 30)          // 노이즈 큼, 보폭 작음, 아주 빠름
-        ];
-
-        const layout = {
-            margin: { l: 0, r: 0, b: 0, t: 0 },
-            scene: {
-                xaxis: { title: '가중치 (W)', range: [-10, 10] },
-                yaxis: { title: '편향 (b)', range: [-10, 10] },
-                zaxis: { title: '손실 (Loss)', range: [0, 200] },
-                camera: { eye: { x: 1.5, y: 1.5, z: 1.2 } }
-            },
-            showlegend: true
-        };
-
-        Plotly.newPlot('plotDiv', [surfaceTrace, ...agents.map(a => a.getTrace())], layout);
-
-        let animationId;
-        let isRunning = false;
-        let lastPlotUpdate = Date.now();
-
-        function animate() {
-            if (!isRunning) return;
-            
-            let updated = false;
-            agents.forEach(a => {
-                const prevSteps = a.steps;
-                a.update();
-                if (a.steps !== prevSteps) {
-                    a.updateUI();
-                    updated = true;
-                }
-            });
-
-            // 성능을 위해 Plotly 렌더링은 50ms마다 한 번씩만 업데이트
-            if (updated && Date.now() - lastPlotUpdate > 50) {
-                Plotly.react('plotDiv', [surfaceTrace, ...agents.map(a => a.getTrace())], layout);
-                lastPlotUpdate = Date.now();
-            }
-
-            animationId = requestAnimationFrame(animate);
-        }
-
-        document.getElementById('startBtn').addEventListener('click', () => {
-            if (!isRunning) {
-                isRunning = true;
-                document.getElementById('startBtn').disabled = true;
-                agents.forEach(a => a.lastUpdate = Date.now());
-                animate();
-            }
-        });
-
-        document.getElementById('resetBtn').addEventListener('click', () => {
-            isRunning = false;
-            cancelAnimationFrame(animationId);
-            document.getElementById('startBtn').disabled = false;
-            agents.forEach(a => { a.reset(); a.updateUI(); });
-            Plotly.react('plotDiv', [surfaceTrace, ...agents.map(a => a.getTrace())], layout);
-        });
-    </script>
-</body>
-</html>
+                <div class="data-row"><span>W: <span class="val" id="w-sgd">8.0
