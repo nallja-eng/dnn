@@ -3,47 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D & 3D 경사하강법 시뮬레이션</title>
+    <title>배치 사이즈 조절 2D & 3D 시뮬레이션</title>
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
     <style>
-        body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: #f4f6f9;
-            margin: 0; padding: 20px;
-            display: flex; flex-direction: column; align-items: center;
-        }
-        .container {
-            background: white; padding: 20px; border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            width: 100%; max-width: 1200px;
-        }
+        body { font-family: 'Pretendard', sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); width: 100%; max-width: 1200px; }
         h2 { text-align: center; margin-top: 0; color: #1a202c; }
         
-        /* 좌우 분할 레이아웃 */
-        .visualizations {
-            display: flex; gap: 20px; width: 100%; height: 500px; margin-bottom: 20px;
-        }
-        .viz-box {
-            flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; 
-            background: #ffffff; position: relative; overflow: hidden;
-        }
+        .visualizations { display: flex; gap: 20px; width: 100%; height: 500px; margin-bottom: 20px; }
+        .viz-box { flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; position: relative; overflow: hidden; }
         canvas { width: 100%; height: 100%; display: block; }
         #plot3d { width: 100%; height: 100%; }
-        .viz-title {
-            position: absolute; top: 10px; left: 10px; z-index: 10;
-            background: rgba(255,255,255,0.9); padding: 5px 10px; 
-            border-radius: 4px; font-weight: bold; border: 1px solid #ddd;
-            font-size: 14px;
-        }
+        .viz-title { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 4px; font-weight: bold; border: 1px solid #ddd; font-size: 14px; }
 
-        /* 대시보드 및 컨트롤 */
-        .dashboard {
-            display: flex; gap: 15px; justify-content: space-between;
-        }
-        .card {
-            padding: 15px; border-radius: 8px; flex: 1; text-align: center;
-            border: 2px solid transparent; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+        .dashboard { display: flex; gap: 15px; justify-content: space-between; }
+        .card { padding: 15px; border-radius: 8px; flex: 1; text-align: center; border: 2px solid transparent; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; }
         .card h3 { margin: 0 0 10px 0; font-size: 16px; }
         .data-row { display: flex; justify-content: space-around; margin-top: 8px; font-size: 14px; }
         .val { font-weight: bold; font-size: 16px; }
@@ -52,43 +26,50 @@
         .card.mini { border-color: #34a853; color: #188038; background: #e6f4ea; }
         .card.sgd { border-color: #ea4335; color: #c5221f; background: #fce8e6; }
         
+        .slider-container { margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.7); border-radius: 6px; font-size: 14px; color: #333; }
+        input[type=range] { width: 80%; cursor: pointer; }
+
         .controls { margin-top: 20px; text-align: center; }
-        button {
-            padding: 10px 20px; font-size: 16px; font-weight: bold; color: white;
-            background-color: #4285f4; border: none; border-radius: 6px; cursor: pointer;
-        }
+        button { padding: 10px 20px; font-size: 16px; font-weight: bold; color: white; background-color: #4285f4; border: none; border-radius: 6px; cursor: pointer; }
         button:disabled { background-color: #a0aec0; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>2D 등고선과 3D 곡면을 통한 파라미터(W, b) 최적화 시각화</h2>
+        <h2>배치 사이즈 조절에 따른 최적화 궤적 시뮬레이션 (전체 데이터 500개 기준)</h2>
         
         <div class="visualizations">
             <div class="viz-box">
-                <div class="viz-title">2D 등고선 (Top-down View)</div>
+                <div class="viz-title">2D 등고선</div>
                 <canvas id="canvas2d" width="580" height="500"></canvas>
             </div>
             <div class="viz-box">
-                <div class="viz-title">3D 손실 곡면 (Surface View)</div>
+                <div class="viz-title">3D 손실 곡면</div>
                 <div id="plot3d"></div>
             </div>
         </div>
         
         <div class="dashboard">
             <div class="card batch">
-                <h3>배치 (Batch)</h3>
+                <h3>배치 (Size: 500)</h3>
                 <div class="data-row"><span>W: <span class="val" id="w-batch">8.00</span></span><span>b: <span class="val" id="b-batch">8.00</span></span></div>
                 <div class="data-row"><span>Loss: <span class="val" id="l-batch">128.0</span></span><span>스텝: <span class="val" id="c-batch">0</span></span></div>
             </div>
+            
+            <!-- 미니 배치 카드에 슬라이더 추가 -->
             <div class="card mini">
-                <h3>미니 배치 (Mini-Batch)</h3>
+                <h3>미니 배치 (Size: <span id="batchSizeDisp" style="color:#e53e3e;">32</span>)</h3>
                 <div class="data-row"><span>W: <span class="val" id="w-mini">8.00</span></span><span>b: <span class="val" id="b-mini">8.00</span></span></div>
                 <div class="data-row"><span>Loss: <span class="val" id="l-mini">128.0</span></span><span>스텝: <span class="val" id="c-mini">0</span></span></div>
+                <div class="slider-container">
+                    <label for="batchSlider">미니 배치 크기 조절:</label><br>
+                    <input type="range" id="batchSlider" min="2" max="499" value="32">
+                </div>
             </div>
+
             <div class="card sgd">
-                <h3>확률적 (SGD)</h3>
+                <h3>확률적 SGD (Size: 1)</h3>
                 <div class="data-row"><span>W: <span class="val" id="w-sgd">8.00</span></span><span>b: <span class="val" id="b-sgd">8.00</span></span></div>
                 <div class="data-row"><span>Loss: <span class="val" id="l-sgd">128.0</span></span><span>스텝: <span class="val" id="c-sgd">0</span></span></div>
             </div>
@@ -101,57 +82,60 @@
     </div>
 
     <script>
-        // --- 1. 수학적 정의 ---
-        // 손실 함수: J(W, b) = W^2 + b^2
-        function getLoss(w, b) {
-            return (w * w) + (b * b);
-        }
+        function getLoss(w, b) { return (w * w) + (b * b); }
 
-        // --- 2. 에이전트 (학습 알고리즘) 클래스 ---
         class Agent {
-            constructor(id, name, color, lr, noise, intervalMs) {
+            constructor(id, name, color, isDynamic = false) {
                 this.id = id; this.name = name; this.color = color;
-                this.lr = lr; this.noise = noise; this.intervalMs = intervalMs;
+                this.isDynamic = isDynamic; // 슬라이더 연동 여부
+                this.resetParams(isDynamic ? 32 : (id === 'batch' ? 500 : 1));
                 this.reset();
             }
+            
+            // 배치 사이즈에 따라 노이즈, 보폭, 업데이트 속도를 동적으로 계산
+            resetParams(batchSize) {
+                const totalData = 500;
+                // 크기가 작을수록 노이즈(지그재그) 증가
+                this.noise = 20 / Math.sqrt(batchSize); 
+                // 크기가 클수록 한 번 업데이트하는 데 걸리는 시간이 김 (느림)
+                this.intervalMs = 20 + (batchSize / totalData) * 780; 
+                // 크기가 클수록 방향이 확실하므로 보폭(학습률)을 늘려도 됨
+                this.lr = 0.02 + (batchSize / totalData) * 0.13; 
+            }
+
             reset() {
-                this.w = 8; this.b = 8; // 시작 좌표 (W, b)
+                this.w = 8; this.b = 8; 
                 this.historyW = [this.w]; this.historyB = [this.b]; this.historyLoss = [getLoss(this.w, this.b)];
                 this.steps = 0; this.lastUpdate = Date.now(); this.reached = false;
             }
+
             update() {
-                if (this.reached) return false; // 목표 도달 시 업데이트 중지
+                if (this.reached) return false;
                 const now = Date.now();
                 if (now - this.lastUpdate >= this.intervalMs) {
-                    // 편미분: dL/dW = 2W, dL/db = 2b
                     let gradW = 2 * this.w + (Math.random() - 0.5) * this.noise;
                     let gradB = 2 * this.b + (Math.random() - 0.5) * this.noise;
                     
                     this.w -= this.lr * gradW;
                     this.b -= this.lr * gradB;
                     
-                    this.historyW.push(this.w);
-                    this.historyB.push(this.b);
-                    this.historyLoss.push(getLoss(this.w, this.b));
+                    this.historyW.push(this.w); this.historyB.push(this.b); this.historyLoss.push(getLoss(this.w, this.b));
+                    this.steps++; this.lastUpdate = now;
                     
-                    this.steps++;
-                    this.lastUpdate = now;
-                    
-                    // 중심(0,0)에 근접하면 정지
                     if (Math.abs(this.w) < 0.1 && Math.abs(this.b) < 0.1) this.reached = true;
-                    return true; // 업데이트 발생함
+                    return true; 
                 }
                 return false;
             }
+
             getPlotlyTrace() {
                 return {
                     x: this.historyW, y: this.historyB, z: this.historyLoss,
                     type: 'scatter3d', mode: 'lines+markers',
-                    marker: { size: 3, color: this.color },
-                    line: { width: 4, color: this.color },
-                    name: this.name
+                    marker: { size: 3, color: this.color }, line: { width: 4, color: this.color }, name: this.name
                 };
             }
+
             updateUI() {
                 document.getElementById(`w-${this.id}`).innerText = this.w.toFixed(2);
                 document.getElementById(`b-${this.id}`).innerText = this.b.toFixed(2);
@@ -161,120 +145,74 @@
         }
 
         const agents = [
-            new Agent('batch', 'Batch', '#4285f4', 0.15, 0, 800),     // 보폭 큼, 느림, 정방향
-            new Agent('mini', 'Mini-Batch', '#34a853', 0.08, 4, 150), // 중간
-            new Agent('sgd', 'SGD', '#ea4335', 0.03, 15, 30)          // 보폭 작음, 빠름, 노이즈(지그재그)
+            new Agent('batch', 'Batch', '#4285f4', false), 
+            new Agent('mini', 'Mini-Batch', '#34a853', true), // 슬라이더 연동
+            new Agent('sgd', 'SGD', '#ea4335', false)
         ];
 
-        // --- 3. 2D Canvas 렌더링 설정 ---
+        // 슬라이더 이벤트 연동
+        const batchSlider = document.getElementById('batchSlider');
+        const batchSizeDisp = document.getElementById('batchSizeDisp');
+        batchSlider.addEventListener('input', function() {
+            batchSizeDisp.innerText = this.value;
+            // 시뮬레이션이 멈춰있을 때만 값 미리 적용
+            if (!isRunning) {
+                agents[1].resetParams(Number(this.value));
+            }
+        });
+
+        // 2D Canvas 셋업
         const canvas = document.getElementById('canvas2d');
         const ctx = canvas.getContext('2d');
-        const W_RANGE = [-10, 10];
-        const B_RANGE = [-10, 10];
-
-        // 좌표계를 캔버스 픽셀로 변환
-        function mapX(w) { return ((w - W_RANGE[0]) / (W_RANGE[1] - W_RANGE[0])) * canvas.width; }
-        // y축은 아래에서 위로 증가하도록 반전
-        function mapY(b) { return canvas.height - ((b - B_RANGE[0]) / (B_RANGE[1] - B_RANGE[0])) * canvas.height; }
+        function mapX(w) { return ((w - -10) / 20) * canvas.width; }
+        function mapY(b) { return canvas.height - ((b - -10) / 20) * canvas.height; }
 
         function draw2D() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // 등고선(동심원) 그리기
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1; ctx.strokeStyle = '#e2e8f0';
             for (let r = 2; r <= 15; r += 2) {
-                ctx.beginPath();
-                // r은 W, b 좌표계 기준 반지름
-                let radiusPx = (r / (W_RANGE[1] - W_RANGE[0])) * canvas.width;
-                ctx.arc(mapX(0), mapY(0), radiusPx, 0, Math.PI * 2);
-                ctx.stroke();
+                ctx.beginPath(); ctx.arc(mapX(0), mapY(0), (r / 20) * canvas.width, 0, Math.PI * 2); ctx.stroke();
             }
-
-            // 중심점 (목표)
-            ctx.beginPath();
-            ctx.arc(mapX(0), mapY(0), 5, 0, Math.PI * 2);
-            ctx.fillStyle = '#fbbc04'; ctx.fill();
-            ctx.strokeStyle = '#000'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(mapX(0), mapY(0), 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#fbbc04'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.stroke();
             
-            // X, Y 축
             ctx.strokeStyle = '#cbd5e0'; ctx.setLineDash([5, 5]);
             ctx.beginPath(); ctx.moveTo(0, mapY(0)); ctx.lineTo(canvas.width, mapY(0)); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(mapX(0), 0); ctx.lineTo(mapX(0), canvas.height); ctx.stroke();
             ctx.setLineDash([]);
             
-            ctx.fillStyle = '#a0aec0'; ctx.font = '12px sans-serif';
-            ctx.fillText('W (가중치)', canvas.width - 60, mapY(0) - 10);
-            ctx.fillText('b (편향)', mapX(0) + 10, 20);
-
-            // 각 에이전트의 2D 궤적 그리기
             agents.forEach(a => {
-                ctx.beginPath();
-                ctx.moveTo(mapX(a.historyW[0]), mapY(a.historyB[0]));
-                for (let i = 1; i < a.historyW.length; i++) {
-                    ctx.lineTo(mapX(a.historyW[i]), mapY(a.historyB[i]));
-                }
+                ctx.beginPath(); ctx.moveTo(mapX(a.historyW[0]), mapY(a.historyB[0]));
+                for (let i = 1; i < a.historyW.length; i++) ctx.lineTo(mapX(a.historyW[i]), mapY(a.historyB[i]));
                 ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.stroke();
-
-                // 현재 위치 마커
-                ctx.beginPath();
-                ctx.arc(mapX(a.w), mapY(a.b), 4, 0, Math.PI * 2);
-                ctx.fillStyle = a.color; ctx.fill();
+                ctx.beginPath(); ctx.arc(mapX(a.w), mapY(a.b), 4, 0, Math.PI * 2); ctx.fillStyle = a.color; ctx.fill();
             });
         }
 
-        // --- 4. 3D Plotly 렌더링 설정 ---
+        // 3D Plotly 셋업
         const wGrid = [], bGrid = [], lossGrid = [];
         for (let w = -10; w <= 10; w += 1) {
             let bRow = [], lossRow = [];
-            for (let b = -10; b <= 10; b += 1) {
-                bRow.push(b); lossRow.push(getLoss(w, b));
-            }
-            wGrid.push(Array(21).fill(w));
-            bGrid.push(bRow); lossGrid.push(lossRow);
+            for (let b = -10; b <= 10; b += 1) { bRow.push(b); lossRow.push(getLoss(w, b)); }
+            wGrid.push(Array(21).fill(w)); bGrid.push(bRow); lossGrid.push(lossRow);
         }
-
-        const surfaceTrace = {
-            x: wGrid, y: bGrid, z: lossGrid,
-            type: 'surface', colorscale: 'Blues', opacity: 0.6, showscale: false, name: 'Loss Surface'
-        };
-
-        const layout3D = {
-            margin: { l: 0, r: 0, b: 0, t: 0 },
-            scene: {
-                xaxis: { title: 'W' }, yaxis: { title: 'b' }, zaxis: { title: 'Loss' },
-                camera: { eye: { x: 1.5, y: 1.5, z: 1.2 } }
-            },
-            showlegend: false
-        };
-
+        const surfaceTrace = { x: wGrid, y: bGrid, z: lossGrid, type: 'surface', colorscale: 'Blues', opacity: 0.6, showscale: false };
+        const layout3D = { margin: { l: 0, r: 0, b: 0, t: 0 }, scene: { xaxis: { title: 'W' }, yaxis: { title: 'b' }, zaxis: { title: 'Loss' } }, showlegend: false };
         Plotly.newPlot('plot3d', [surfaceTrace, ...agents.map(a => a.getPlotlyTrace())], layout3D, {responsive: true});
 
-        // --- 5. 애니메이션 및 컨트롤 ---
-        let animationId;
-        let isRunning = false;
-        let lastPlotlyUpdate = Date.now();
-
+        // 애니메이션 루프
+        let animationId; let isRunning = false; let lastPlotlyUpdate = Date.now();
         function animate() {
             if (!isRunning) return;
-            
             let updatedAny = false;
             agents.forEach(a => {
-                if(a.update()) {
-                    a.updateUI();
-                    updatedAny = true;
-                }
+                if(a.update()) { a.updateUI(); updatedAny = true; }
             });
-
-            // 2D 캔버스는 매우 가벼우므로 매 프레임 다시 그림
             draw2D();
-
-            // 3D Plotly는 렌더링 비용이 크므로 100ms마다 한 번씩만 화면 갱신
             if (updatedAny && Date.now() - lastPlotlyUpdate > 100) {
                 Plotly.react('plot3d', [surfaceTrace, ...agents.map(a => a.getPlotlyTrace())], layout3D);
                 lastPlotlyUpdate = Date.now();
             }
-
             animationId = requestAnimationFrame(animate);
         }
 
@@ -282,6 +220,9 @@
             if (!isRunning) {
                 isRunning = true;
                 document.getElementById('startBtn').disabled = true;
+                batchSlider.disabled = true; // 실행 중 슬라이더 고정
+                // 시작 시 슬라이더 값 적용
+                agents[1].resetParams(Number(batchSlider.value));
                 agents.forEach(a => a.lastUpdate = Date.now());
                 animate();
             }
@@ -291,12 +232,13 @@
             isRunning = false;
             cancelAnimationFrame(animationId);
             document.getElementById('startBtn').disabled = false;
+            batchSlider.disabled = false; // 슬라이더 잠금 해제
+            agents[1].resetParams(Number(batchSlider.value)); // 현재 슬라이더 값 기준으로 파라미터 재설정
             agents.forEach(a => { a.reset(); a.updateUI(); });
             draw2D();
             Plotly.react('plot3d', [surfaceTrace, ...agents.map(a => a.getPlotlyTrace())], layout3D);
         });
 
-        // 초기 화면 그리기
         draw2D();
     </script>
 </body>
